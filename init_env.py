@@ -12,7 +12,7 @@ import os
 def init_pip(mirror_url="mirrors.aliyun.com"):
     """
     初始化pip.ini
-    :param mirror_url:
+    :param mirror_url:镜像源url
     :return:
     """
     pip_ini = os.path.expanduser('~/pip/pip.ini')
@@ -29,7 +29,13 @@ def init_pip(mirror_url="mirrors.aliyun.com"):
         print("pip.ini 初始化完成")
 
 
-def init_condarc(mirror_url="mirrors.bfsu.edu.cn", set_env_dir=True):
+def init_condarc(mirror_url="mirrors.bfsu.edu.cn", set_env_dir=False):
+    """
+    初始化condarc
+    :param mirror_url:镜像源url
+    :param set_env_dir:是否设置环境目录
+    :return:
+    """
     condarc = os.path.expanduser('~/.condarc')
     # 向condarc写入镜像配置
     with open(condarc, 'w') as f:

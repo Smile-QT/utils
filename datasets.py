@@ -10,7 +10,6 @@ import hashlib
 import json
 import math
 import os
-import pickle
 import random
 import shutil
 import time
@@ -18,7 +17,6 @@ from itertools import repeat
 from multiprocessing.pool import Pool, ThreadPool
 from pathlib import Path
 from threading import Thread
-from typing import Optional, Callable, Tuple, Any
 from urllib.parse import urlparse
 from zipfile import ZipFile
 
@@ -31,7 +29,6 @@ from PIL import ExifTags, Image, ImageOps
 from torch.utils import data
 from torch.utils.data import DataLoader, Dataset, dataloader, distributed
 from torchvision import transforms
-from torchvision.datasets import VisionDataset
 from tqdm import tqdm
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective

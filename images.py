@@ -5,17 +5,12 @@
 @FileName   : imtools.py
 @Description: 
 """
-import os
+import glob
 
 import cv2
 import numpy as np
 from PIL import Image
 from numpy import uint8, array, histogram, interp, linalg, dot, sqrt
-
-
-def get_file_type_list(path, file_type='jpg'):
-    """返回目录中某种文件类型的所有文件列表"""
-    return [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.%s' % file_type)]
 
 
 def imresize(im, sz):
@@ -76,6 +71,11 @@ def pca(X):
 
 
 def img_8bit(images):
+    """
+    将图像转换为8位图像
+    :param images:
+    :return:
+    """
     for image in images:
         cv2.imshow("image", image)
         r, c = image.shape[:2]
@@ -92,3 +92,7 @@ def img_8bit(images):
             cv2.imshow(str(i), r[:, :, i])
         cv2.waitKey(0)
         cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    pass

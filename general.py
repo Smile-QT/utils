@@ -30,7 +30,6 @@ import pkg_resources as pkg
 import torch
 import torchvision
 import yaml
-from d2l.torch import d2l
 
 from utils.metrics import box_iou
 
@@ -84,7 +83,8 @@ def set_logging(name=None, verbose=VERBOSE):
     return logging.getLogger(name)
 
 
-LOGGER = set_logging('Spring')  # define globally (used in train.py, val.py, detect.py, etc.)
+# define globally (used in train.py, val.py, detect.py, etc.)
+LOGGER = set_logging('Spring')
 
 
 def user_config_dir(dir='Ultralytics', env_var='PROJECT_CONFIG_DIR'):
@@ -100,7 +100,8 @@ def user_config_dir(dir='Ultralytics', env_var='PROJECT_CONFIG_DIR'):
     return path
 
 
-CONFIG_DIR = user_config_dir()  # Ultralytics settings dir
+# Ultralytics settings dir
+CONFIG_DIR = user_config_dir()
 
 
 class Profile(contextlib.ContextDecorator):
@@ -676,100 +677,6 @@ def clip_coords(boxes, shape):
         boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(0, shape[0])  # y1, y2
 
 
-def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
-                        labels=(), max_det=300):
-    """Runs Non-Maximum Suppression (NMS) on inference results
-
-    Returns:
-         list of detections, on (n,6) tensor per image [xyxy, conf, cls]
-    """
-
-    nc = prediction.shape[2] - 5  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
-
-    # Checks
-    assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
-    assert 0 <= iou_thres <= 1, f'Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0'
-
-    # Settings
-    min_wh, max_wh = 2, 7680  # (pixels) minimum and maximum box width and height
-    max_nms = 30000  # maximum number of boxes into torchvision.ops.nms()
-    time_limit = 10.0  # seconds to quit after
-    redundant = True  # require redundant detections
-    multi_label &= nc > 1  # multiple labels per box (adds 0.5ms/img)
-    merge = False  # use merge-NMS
-
-    t = time.time()
-    output = [torch.zeros((0, 6), device=prediction.device)] * prediction.shape[0]
-    for xi, x in enumerate(prediction):  # image index, image inference
-        # Apply constraints
-        x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
-        x = x[xc[xi]]  # confidence
-
-        # Cat apriori labels if autolabelling
-        if labels and len(labels[xi]):
-            lb = labels[xi]
-            v = torch.zeros((len(lb), nc + 5), device=x.device)
-            v[:, :4] = lb[:, 1:5]  # box
-            v[:, 4] = 1.0  # conf
-            v[range(len(lb)), lb[:, 0].long() + 5] = 1.0  # cls
-            x = torch.cat((x, v), 0)
-
-        # If none remain process next image
-        if not x.shape[0]:
-            continue
-
-        # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
-
-        # Box (center x, center y, width, height) to (x1, y1, x2, y2)
-        box = xywh2xyxy(x[:, :4])
-
-        # Detections matrix nx6 (xyxy, conf, cls)
-        if multi_label:
-            i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
-        else:  # best class only
-            conf, j = x[:, 5:].max(1, keepdim=True)
-            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
-
-        # Filter by class
-        if classes is not None:
-            x = x[(x[:, 5:6] == torch.tensor(classes, device=x.device)).any(1)]
-
-        # Apply finite constraint
-        # if not torch.isfinite(x).all():
-        #     x = x[torch.isfinite(x).all(1)]
-
-        # Check shape
-        n = x.shape[0]  # number of boxes
-        if not n:  # no boxes
-            continue
-        elif n > max_nms:  # excess boxes
-            x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence
-
-        # Batched NMS
-        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-        boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        i = torchvision.ops.nms(boxes, scores, iou_thres)  # NMS
-        if i.shape[0] > max_det:  # limit detections
-            i = i[:max_det]
-        if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
-            # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
-            iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
-            weights = iou * scores[None]  # box weights
-            x[i, :4] = torch.mm(weights, x[:, :4]).float() / weights.sum(1, keepdim=True)  # merged boxes
-            if redundant:
-                i = i[iou.sum(1) > 1]  # require redundancy
-
-        output[xi] = x[i]
-        if (time.time() - t) > time_limit:
-            LOGGER.warning(f'WARNING: NMS time limit {time_limit}s exceeded')
-            break  # time limit exceeded
-
-    return output
-
-
 def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_optimizer()
     # Strip optimizer from 'f' to finalize training, optionally save as 's'
     x = torch.load(f, map_location=torch.device('cpu'))
@@ -784,84 +691,6 @@ def strip_optimizer(f='best.pt', s=''):  # from utils.general import *; strip_op
     torch.save(x, s or f)
     mb = os.path.getsize(s or f) / 1E6  # filesize
     LOGGER.info(f"Optimizer stripped from {f},{(' saved as %s,' % s) if s else ''} {mb:.1f}MB")
-
-
-# def print_mutation(results, hyp, save_dir, bucket, prefix=colorstr('evolve: ')):
-#     evolve_csv = save_dir / 'evolve.csv'
-#     evolve_yaml = save_dir / 'hyp_evolve.yaml'
-#     keys = ('metrics/precision', 'metrics/recall', 'metrics/mAP_0.5', 'metrics/mAP_0.5:0.95',
-#             'val/box_loss', 'val/obj_loss', 'val/cls_loss') + tuple(hyp.keys())  # [results + hyps]
-#     keys = tuple(x.strip() for x in keys)
-#     vals = results + tuple(hyp.values())
-#     n = len(keys)
-#
-#     # Download (optional)
-#     if bucket:
-#         url = f'gs://{bucket}/evolve.csv'
-#         if gsutil_getsize(url) > (evolve_csv.stat().st_size if evolve_csv.exists() else 0):
-#             os.system(f'gsutil cp {url} {save_dir}')  # download evolve.csv if larger than local
-#
-#     # Log to evolve.csv
-#     s = '' if evolve_csv.exists() else (('%20s,' * n % keys).rstrip(',') + '\n')  # add header
-#     with open(evolve_csv, 'a') as f:
-#         f.write(s + ('%20.5g,' * n % vals).rstrip(',') + '\n')
-#
-#     # Save yaml
-#     with open(evolve_yaml, 'w') as f:
-#         data = pd.read_csv(evolve_csv)
-#         data = data.rename(columns=lambda x: x.strip())  # strip keys
-#         i = np.argmax(fitness(data.values[:, :4]))  #
-#         generations = len(data)
-#         f.write('# YOLOv5 Hyperparameter Evolution Results\n' +
-#                 f'# Best generation: {i}\n' +
-#                 f'# Last generation: {generations - 1}\n' +
-#                 '# ' + ', '.join(f'{x.strip():>20s}' for x in keys[:7]) + '\n' +
-#                 '# ' + ', '.join(f'{x:>20.5g}' for x in data.values[i, :7]) + '\n\n')
-#         yaml.safe_dump(data.loc[i][7:].to_dict(), f, sort_keys=False)
-#
-#     # Print to screen
-#     LOGGER.info(prefix + f'{generations} generations finished, current result:\n' +
-#                 prefix + ', '.join(f'{x.strip():>20s}' for x in keys) + '\n' +
-#                 prefix + ', '.join(f'{x:20.5g}' for x in vals) + '\n\n')
-#
-#     if bucket:
-#         os.system(f'gsutil cp {evolve_csv} {evolve_yaml} gs://{bucket}')  # upload
-
-
-def apply_classifier(x, model, img, im0):
-    # Apply a second stage classifier to YOLO outputs
-    # Example model = torchvision.models.__dict__['efficientnet_b0'](pretrained=True).to(device).eval()
-    im0 = [im0] if isinstance(im0, np.ndarray) else im0
-    for i, d in enumerate(x):  # per image
-        if d is not None and len(d):
-            d = d.clone()
-
-            # Reshape and pad cutouts
-            b = xyxy2xywh(d[:, :4])  # boxes
-            b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # rectangle to square
-            b[:, 2:] = b[:, 2:] * 1.3 + 30  # pad
-            d[:, :4] = xywh2xyxy(b).long()
-
-            # Rescale boxes from img_size to im0 size
-            scale_coords(img.shape[2:], d[:, :4], im0[i].shape)
-
-            # Classes
-            pred_cls1 = d[:, 5].long()
-            ims = []
-            for j, a in enumerate(d):  # per item
-                cutout = im0[i][int(a[1]):int(a[3]), int(a[0]):int(a[2])]
-                im = cv2.resize(cutout, (224, 224))  # BGR
-                # cv2.imwrite('example%i.jpg' % j, cutout)
-
-                im = im[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
-                im = np.ascontiguousarray(im, dtype=np.float32)  # uint8 to float32
-                im /= 255  # 0 - 255 to 0.0 - 1.0
-                ims.append(im)
-
-            pred_cls2 = model(torch.Tensor(ims).to(d.device)).argmax(1)  # classifier prediction
-            x[i] = x[i][pred_cls1 == pred_cls2]  # retain matching class detections
-
-    return x
 
 
 def increment_path(path, exist_ok=False, sep='', mkdir=False):
@@ -880,7 +709,8 @@ def increment_path(path, exist_ok=False, sep='', mkdir=False):
 
 
 # Variables
-NCOLS = 0 if is_docker() else shutil.get_terminal_size().columns  # terminal window size for tqdm
+# terminal window size for tqdm
+NCOLS = 0 if is_docker() else shutil.get_terminal_size().columns
 
 
 def get_workers():
@@ -889,24 +719,3 @@ def get_workers():
     :return: number of workers
     """
     return min(8, max(1, os.cpu_count() - 1))
-
-
-def show_images(imgs, num_rows, num_cols, titles=None, scale=1.5):
-    """Plot a list of images.
-
-    Defined in :numref:`sec_fashion_mnist`"""
-    figsize = (num_cols * scale, num_rows * scale)
-    _, axes = d2l.plt.subplots(num_rows, num_cols, figsize=figsize)
-    axes = axes.flatten()
-    for i, (ax, img) in enumerate(zip(axes, imgs)):
-        if torch.is_tensor(img):
-            # Tensor Image
-            ax.imshow(img.numpy())
-        else:
-            # PIL Image
-            ax.imshow(img)
-        ax.axes.get_xaxis().set_visible(False)
-        ax.axes.get_yaxis().set_visible(False)
-        if titles:
-            ax.set_title(titles[i])
-    return axes
