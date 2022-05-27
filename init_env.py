@@ -5,11 +5,11 @@
 @FileName   : init_env.py
 @Description: 
 """
-
+import json
 import os
 
 
-def init_pip(mirror_url="mirrors.aliyun.com"):
+def init_pip(mirror_url: str = "mirrors.aliyun.com") -> None:
     """
     初始化pip.ini
     :param mirror_url:镜像源url
@@ -29,7 +29,7 @@ def init_pip(mirror_url="mirrors.aliyun.com"):
         print("pip.ini 初始化完成")
 
 
-def init_condarc(mirror_url="mirrors.bfsu.edu.cn", set_env_dir=False):
+def init_condarc(mirror_url: str = "mirrors.bfsu.edu.cn", set_env_dir: bool = False) -> None:
     """
     初始化condarc
     :param mirror_url:镜像源url
@@ -64,6 +64,24 @@ def init_condarc(mirror_url="mirrors.bfsu.edu.cn", set_env_dir=False):
         print("condarc 初始化完成")
 
 
+def init_kaggle(username, key):
+    """
+    初始化kaggle
+    :param username:用户名
+    :param key:密钥
+    :return:
+    """
+    kaggle_file = os.path.expanduser('~/.kaggle/kaggle.json')
+    # 判断文件夹是否存在
+    if not os.path.exists(kaggle_file):
+        os.makedirs(os.path.dirname(kaggle_file), exist_ok=True)
+    json_data = {"username": username, "key": key}
+    with open(kaggle_file, 'w') as f:
+        json.dump(json_data, f)
+    print("kaggle 初始化完成")
+
+
 if __name__ == '__main__':
     init_pip()
     init_condarc()
+    init_kaggle("choushunn", "b8ab8a9b3b872bce7e1669808eb91159")

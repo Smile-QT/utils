@@ -9,7 +9,7 @@ import glob
 import os
 
 
-def walk_file(file):
+def walk_file(file: str) -> None:
     """
     遍历文件夹下的所有文件
     :param file:
